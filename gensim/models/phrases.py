@@ -79,6 +79,9 @@ class Phrases(interfaces.TransformationABC):
     and `phrases[corpus]` syntax.
 
     """
+    # modified for topic bigram (aspect project)
+    biwordset = None
+    
     def __init__(self, sentences=None, min_count=5, threshold=10.0,
                  max_vocab_size=40000000, delimiter=b'_', progress_per=10000):
         """
@@ -122,6 +125,7 @@ class Phrases(interfaces.TransformationABC):
         self.delimiter = delimiter
         self.progress_per = progress_per
 
+
         if sentences is not None:
             self.add_vocab(sentences)
 
@@ -130,6 +134,10 @@ class Phrases(interfaces.TransformationABC):
         return "%s<%i vocab, min_count=%s, threshold=%s, max_vocab_size=%s>" % (
             self.__class__.__name__, len(self.vocab), self.min_count,
             self.threshold, self.max_vocab_size)
+
+    @staticmethod
+    def set_biwordset(biwordset):
+        Phrases.biwordset = biwordset
 
     @staticmethod
     def learn_vocab(sentences, max_vocab_size, delimiter=b'_', progress_per=10000):
@@ -144,11 +152,19 @@ class Phrases(interfaces.TransformationABC):
                 logger.info("PROGRESS: at sentence #%i, processed %i words and %i word types" %
                             (sentence_no, total_words, len(vocab)))
             sentence = [utils.any2utf8(w) for w in sentence]
-            for bigram in zip(sentence, sentence[1:]):
-                vocab[bigram[0]] += 1
-                vocab[delimiter.join(bigram)] += 1
-                total_words += 1
-
+            
+            if not Phrases.biwordset:
+                for bigram in zip(sentence, sentence[1:]):
+                    vocab[bigram[0]] += 1
+                    vocab[delimiter.join(bigram)] += 1
+                    total_words += 1
+            else:
+                for bigram in zip(sentence, sentence[1:]):
+                    vocab[bigram[0]] += 1	
+                    if bigram[0] in Phrases.biwordset or bigram[1] in Phrases.biwordset:
+                        vocab[delimiter.join(bigram)] += 1
+                        total_words += 1
+          
             if sentence:  # add last word skipped by previous loop
                 word = sentence[-1]
                 vocab[word] += 1
